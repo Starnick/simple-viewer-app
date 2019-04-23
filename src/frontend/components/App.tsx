@@ -19,6 +19,7 @@ import TreeWidget from "./Tree";
 import ViewportContentControl from "./Viewport";
 import "@bentley/icons-generic-webfont/dist/bentley-icons-generic-webfont.css";
 import "./App.css";
+import { Sum } from "calculator-frontend";
 
 // tslint:disable: no-console
 
@@ -71,6 +72,12 @@ export default class App extends React.Component<{}, AppState> {
   }
 
   private _onSelectionChanged = (evt: SelectionChangeEventArgs, selectionProvider: ISelectionProvider) => {
+    const s = new Sum();
+    s.Add(15);
+    s.Subtract(1.3);
+    const sumVal = s.GetValue();
+    console.log(sumVal);
+    s.Dispose();
     const selection = selectionProvider.getSelection(evt.imodel, evt.level);
     if (selection.isEmpty) {
       console.log("========== Selection cleared ==========");

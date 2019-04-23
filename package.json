@@ -59,8 +59,8 @@
   "dependencies": {
     "@bentley/bentleyjs-core": "0.190.0",
     "@bentley/config-loader": "0.190.0",
-    "@bentley/geometry-core": "0.190.0",
     "@bentley/electron-manager": "0.190.0",
+    "@bentley/geometry-core": "0.190.0",
     "@bentley/icons-generic-webfont": "^0.0.9",
     "@bentley/imodeljs-backend": "0.190.0",
     "@bentley/imodeljs-clients": "0.190.0",
@@ -81,6 +81,8 @@
     "@bentley/ui-ninezone": "0.190.0",
     "body-parser": "^1.18",
     "bunyan": "^1.8.12",
+    "calculator-backend": "file:../Civil/Calculator/output/backend",
+    "calculator-frontend": "file:../Civil/Calculator/output/frontend",
     "chai-jest-snapshot": "^2.0.0",
     "express": "^4",
     "inspire-tree": "^5.0.1",

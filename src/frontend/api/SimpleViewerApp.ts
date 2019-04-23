@@ -13,6 +13,7 @@ import { UseBackend } from "../../common/configuration";
 import initLogging from "./logging";
 import initRpc from "./rpc";
 import { OidcIOSClient } from "./OidcIosClient";
+import { PlaceRoadTool } from "../tools/PlaceRoadTool";
 
 // initialize logging
 initLogging();
@@ -51,6 +52,9 @@ export class SimpleViewerApp extends IModelApp {
 
     // initialize OIDC
     initPromises.push(SimpleViewerApp.initializeOidc());
+
+    const coreNamespace = IModelApp.i18n.registerNamespace("ConceptStation");
+    IModelApp.tools.register(PlaceRoadTool, coreNamespace);
 
     // the app is ready when all initialization promises are fulfilled
     this._isReady = Promise.all(initPromises).then(() => { });
