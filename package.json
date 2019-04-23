@@ -81,8 +81,8 @@
     "@bentley/ui-ninezone": "0.190.0",
     "body-parser": "^1.18",
     "bunyan": "^1.8.12",
-    "calculator-backend": "file:../Civil/Calculator/output/backend",
-    "calculator-frontend": "file:../Civil/Calculator/output/frontend",
+    "calculator-backend": "file:../civil/calculator/output/backend",
+    "calculator-frontend": "file:../civil/calculator/output/frontend",
     "chai-jest-snapshot": "^2.0.0",
     "express": "^4",
     "inspire-tree": "^5.0.1",
@@ -92,7 +92,8 @@
     "react-dnd-html5-backend": "^5.0.1",
     "react-dom": "^16.4.2",
     "react-redux": "^5.0.7",
-    "redux": "^4.0.0"
+    "redux": "^4.0.0",
+    "ws": "^6.2.1"
   },
   "devDependencies": {
     "@bentley/build-tools": "0.190.0",

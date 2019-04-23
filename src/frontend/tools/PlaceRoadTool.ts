@@ -1,6 +1,7 @@
 import { PrimitiveTool, IModelApp, Viewport, BeButtonEvent, EventHandled, GraphicType, DecorateContext } from "@bentley/imodeljs-frontend";
 import { Point3d } from "@bentley/geometry-core";
 import { ColorDef } from "@bentley/imodeljs-common";
+import { CSInterop } from "calculator-frontend";
 
 export class PlaceRoadTool extends PrimitiveTool {
   public static toolId = "ConceptStation.PlaceRoad";
@@ -28,6 +29,12 @@ export class PlaceRoadTool extends PrimitiveTool {
   public async onDataButtonDown(ev: BeButtonEvent): Promise<EventHandled> {
     if (this._locationData.length > 0)
       this._locationData[this._locationData.length - 1] = ev.point.clone();
+
+    const calc = new CSInterop();
+    calc.do();
+    const serialized = calc.getStringResult();
+    // tslint:disable-next-line:no-console
+    console.log(serialized);
 
     const point = ev.point.clone();
     this._locationData.push(point);
