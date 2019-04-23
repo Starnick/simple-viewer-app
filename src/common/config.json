@@ -4,6 +4,7 @@
   // Must un-comment the lines below and set these variables before testing - create a new project and
   // iModel with the developer registration procedure here - https://git.io/fx8YP
   // -----------------------------------------------------------------------------------------------------------
-   "imjs_test_project" : "SandysTreeHouse", // Set this to the name of the sample project
-   "imjs_test_imodel"  : "SandysTreeHouse" // Set this to the name of the sample iModel
+   "imjs_test_project" : "CiviliModelJsPlayground", // Set this to the name of the sample project
+   "imjs_test_imodel"  : "All-One", // Set this to the name of the sample iModel
+   "imjs_buddi_resolve_url_using_region" : "102"
 }
