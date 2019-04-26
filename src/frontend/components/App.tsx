@@ -75,9 +75,11 @@ export default class App extends React.Component<{}, AppState> {
     const s = new Sum();
     s.Add(15);
     s.Subtract(1.3);
+    s.TestBind();
     const sumVal = s.GetValue();
     console.log(sumVal);
     s.Dispose();
+
     const selection = selectionProvider.getSelection(evt.imodel, evt.level);
     if (selection.isEmpty) {
       console.log("========== Selection cleared ==========");

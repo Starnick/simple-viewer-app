@@ -4,6 +4,7 @@
 *--------------------------------------------------------------------------------------------*/
 import { RpcInterfaceDefinition, IModelReadRpcInterface, IModelTileRpcInterface, StandaloneIModelRpcInterface } from "@bentley/imodeljs-common";
 import { PresentationRpcInterface } from "@bentley/presentation-common";
+import { CorridorModelerRpcInterface } from "./CorridorModelerRpc";
 
 /**
  * Returns a list of RPCs supported by this application
@@ -14,5 +15,6 @@ export default function getSupportedRpcs(): RpcInterfaceDefinition[] {
     IModelTileRpcInterface,
     PresentationRpcInterface,
     StandaloneIModelRpcInterface,
+    CorridorModelerRpcInterface,
   ];
 }

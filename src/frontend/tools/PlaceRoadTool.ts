@@ -1,11 +1,49 @@
 import { PrimitiveTool, IModelApp, Viewport, BeButtonEvent, EventHandled, GraphicType, DecorateContext } from "@bentley/imodeljs-frontend";
-import { Point3d } from "@bentley/geometry-core";
+import { Point3d, Path, Polyface, IModelJson } from "@bentley/geometry-core";
 import { ColorDef } from "@bentley/imodeljs-common";
-import { CSInterop } from "calculator-frontend";
+import { CivilGeometry, AlignmentDesigner } from "calculator-frontend";
+import { isNullOrUndefined } from "util";
+import { CorridorModelerRpcInterface } from "../../common/CorridorModelerRpc";
+
+class RoadMesh {
+  public color: ColorDef;
+  public mesh: Polyface | undefined;
+
+  constructor() {
+    this.color = ColorDef.white;
+  }
+
+  public static fromJSON(json: any): RoadMesh | undefined {
+    if (isNullOrUndefined(json))
+      return undefined;
+
+    const rdmesh = new RoadMesh();
+
+    if (json.hasOwnProperty("Color"))
+      rdmesh.color = new ColorDef(json.Color as string);
+
+    if (json.hasOwnProperty("Mesh"))
+      rdmesh.mesh = IModelJson.Reader.parse(JSON.parse(json.Mesh));
+
+    return rdmesh;
+  }
+}
 
 export class PlaceRoadTool extends PrimitiveTool {
   public static toolId = "ConceptStation.PlaceRoad";
   protected readonly _locationData = new Array<Point3d>();
+
+  private _editor: AlignmentDesigner;
+  private _horizontal: Path | undefined;
+  private _roadMeshes: RoadMesh[] | undefined;
+  private _useLocalMeshes: boolean = false;
+
+  constructor() {
+    super();
+    this._editor = CivilGeometry.CreateAlignmentDesigner();
+    this._horizontal = undefined;
+    this._roadMeshes = undefined;
+  }
 
   public isCompatibleViewport(vp: Viewport | undefined, isSelectedViewChange: boolean): boolean { return (super.isCompatibleViewport(vp, isSelectedViewChange) && undefined !== vp && vp.view.isSpatialView()); }
   public requireWriteableTarget(): boolean { return false; }
@@ -20,48 +58,100 @@ export class PlaceRoadTool extends PrimitiveTool {
     this.showPrompt();
   }
 
+  public onCleanup(): void {
+    // Should explicitly delete. If JS does a GC it _should_ release the RefCountedPtr
+    this._editor.delete();
+  }
+
   public onRestartTool(): void {
     const tool = new PlaceRoadTool();
     if (!tool.run())
       tool.exitTool();
   }
 
+  private async getMeshes(): Promise<void> {
+    if (isNullOrUndefined(this._horizontal))
+      return;
+
+    const jsonstr = JSON.stringify(IModelJson.Writer.toIModelJson(this._horizontal));
+    let meshStr;
+
+    if (this._useLocalMeshes)
+      meshStr = CivilGeometry.CreateDynamicRoadMeshes(this._editor);
+    else
+      meshStr = await CorridorModelerRpcInterface.getClient().createRoadMesh(this.iModel.iModelToken, jsonstr);
+
+    const meshes = JSON.parse(meshStr);
+    this._roadMeshes = new Array<RoadMesh>();
+
+    for (const element of meshes) {
+      const rdmesh = RoadMesh.fromJSON(element);
+      if (isNullOrUndefined(rdmesh) || isNullOrUndefined(rdmesh.mesh))
+        continue;
+
+      this._roadMeshes.push(rdmesh);
+    }
+  }
+
+  public async onResetButtonDown(_ev: BeButtonEvent): Promise<EventHandled> {
+    // commented out, for now we crash because of unlinked polyface methods in WASM!!
+    // this._useLocalMeshes = !this._useLocalMeshes;
+
+    return EventHandled.Yes;
+  }
+
   public async onDataButtonDown(ev: BeButtonEvent): Promise<EventHandled> {
-    if (this._locationData.length > 0)
-      this._locationData[this._locationData.length - 1] = ev.point.clone();
-
-    const calc = new CSInterop();
-    calc.do();
-    const serialized = calc.getStringResult();
-    // tslint:disable-next-line:no-console
-    console.log(serialized);
-
     const point = ev.point.clone();
+    if (!this._editor.InsertPoint(point)) {
+        return EventHandled.Yes;
+      }
+
     this._locationData.push(point);
+    this._horizontal = this._editor.GetHorizontalCurveVector();
+
     this.setupAndPromptForNextAction();
+
     if (undefined !== ev.viewport)
       ev.viewport.invalidateDecorations();
+
     return EventHandled.Yes;
   }
 
   public decorate(context: DecorateContext): void {
-    if (!context.viewport.view.isSpatialView())
+    if (!context.viewport.view.isSpatialView() || this._locationData.length == 0)
       return;
 
     const alignmentBuilder = context.createGraphicBuilder(GraphicType.WorldDecoration);
     const red = new ColorDef("rgb(255,0,0)");
     alignmentBuilder.setSymbology(red, red, 3);
-    alignmentBuilder.addLineString(this._locationData);
 
-    context.addDecorationFromBuilder(alignmentBuilder);
+    if (isNullOrUndefined(this._horizontal))
+      alignmentBuilder.addLineString(this._locationData);
+    else
+      alignmentBuilder.addPath(this._horizontal);
+
+    if (!isNullOrUndefined(this._roadMeshes)) {
+      this._roadMeshes.forEach((rdmesh: RoadMesh) => {
+          alignmentBuilder.setSymbology(rdmesh.color, rdmesh.color, 0);
+          alignmentBuilder.addPolyface(rdmesh.mesh as Polyface, true);
+      });
+
+      context.addDecorationFromBuilder(alignmentBuilder);
+    }
   }
 
   public decorateSuspended(context: DecorateContext): void { this.decorate(context); }
 
   public async onMouseMotion(ev: BeButtonEvent): Promise<void> {
     if (this._locationData.length > 0 && undefined !== ev.viewport) {
-      this._locationData[this._locationData.length - 1] = ev.point.clone();
-      ev.viewport.invalidateDecorations();
+      const newHoriz = this._editor.GetDynamicHorizontalAlignment(ev.point);
+
+      if (!isNullOrUndefined(newHoriz)){
+        this._horizontal = newHoriz;
+        ev.viewport.invalidateDecorations();
+
+        await this.getMeshes();
+      }
     }
   }
 }

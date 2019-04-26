@@ -4,10 +4,11 @@
 *--------------------------------------------------------------------------------------------*/
 // tslint:disable:no-console
 import * as express from "express";
-import { RpcInterfaceDefinition, BentleyCloudRpcManager } from "@bentley/imodeljs-common";
+import { RpcInterfaceDefinition, BentleyCloudRpcManager, IModelToken, RpcInterface, RpcManager } from "@bentley/imodeljs-common";
 import { IModelJsExpressServer } from "@bentley/imodeljs-backend";
-import { Sum } from "calculator-backend";
+import { Sum, CorridorModeler } from "calculator-backend";
 import { Point3d } from "@bentley/geometry-core";
+import { CorridorModelerRpcInterface } from "../../common/CorridorModelerRpc";
 
 /**
  * Initializes Web Server backend
@@ -27,14 +28,21 @@ export default async function initialize(rpcs: RpcInterfaceDefinition[]) {
   s.Subtract(1.3);
   console.log(s.GetValue());
   console.log(s);
+  s.Dispose();
 
   const pt1 = new Point3d(5, 10, 20);
   const pt2 = new Point3d(.25, .50, .75);
   const result = s.AddPoints(pt1, pt2);
   console.log(result);
 
-  console.log(s.CreateSimpleMesh(pt1, 1));
+  RpcManager.registerImpl(CorridorModelerRpcInterface, CorridorModelerRpcImpl);
+}
 
+export class CorridorModelerRpcImpl extends RpcInterface implements CorridorModelerRpcInterface {
+  public async createRoadMesh(_iModelToken: IModelToken, alignment: string): Promise<string> {
+     const modeler = new CorridorModeler();
+     const json = modeler.CreateRoadMesh(alignment);
 
-  s.Dispose();
+     return JSON.stringify(json);
+    }
 }
