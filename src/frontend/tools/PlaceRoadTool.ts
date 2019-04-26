@@ -1,4 +1,4 @@
-import { PrimitiveTool, IModelApp, Viewport, BeButtonEvent, EventHandled, GraphicType, DecorateContext } from "@bentley/imodeljs-frontend";
+import { PrimitiveTool, IModelApp, Viewport, BeButtonEvent, EventHandled, GraphicType, DecorateContext, GraphicBuilder } from "@bentley/imodeljs-frontend";
 import { Point3d, Path, Polyface, IModelJson } from "@bentley/geometry-core";
 import { ColorDef } from "@bentley/imodeljs-common";
 import { CivilGeometry, AlignmentDesigner } from "calculator-frontend";
@@ -37,6 +37,7 @@ export class PlaceRoadTool extends PrimitiveTool {
   private _horizontal: Path | undefined;
   private _roadMeshes: RoadMesh[] | undefined;
   private _useLocalMeshes: boolean = false;
+  private _showMeshes: boolean = false;
 
   constructor() {
     super();
@@ -96,6 +97,7 @@ export class PlaceRoadTool extends PrimitiveTool {
   public async onResetButtonDown(_ev: BeButtonEvent): Promise<EventHandled> {
     // commented out, for now we crash because of unlinked polyface methods in WASM!!
     // this._useLocalMeshes = !this._useLocalMeshes;
+    this._showMeshes = !this._showMeshes;
 
     return EventHandled.Yes;
   }
@@ -117,8 +119,18 @@ export class PlaceRoadTool extends PrimitiveTool {
     return EventHandled.Yes;
   }
 
+  private addMeshesToBuilder(alignmentBuilder: GraphicBuilder): void {
+    if (isNullOrUndefined(this._roadMeshes))
+      return;
+
+    this._roadMeshes.forEach((rdmesh: RoadMesh) => {
+          alignmentBuilder.setSymbology(rdmesh.color, rdmesh.color, 0);
+          alignmentBuilder.addPolyface(rdmesh.mesh as Polyface, true);
+      });
+  }
+
   public decorate(context: DecorateContext): void {
-    if (!context.viewport.view.isSpatialView() || this._locationData.length == 0)
+    if (!context.viewport.view.isSpatialView() || this._locationData.length === 0)
       return;
 
     const alignmentBuilder = context.createGraphicBuilder(GraphicType.WorldDecoration);
@@ -130,14 +142,10 @@ export class PlaceRoadTool extends PrimitiveTool {
     else
       alignmentBuilder.addPath(this._horizontal);
 
-    if (!isNullOrUndefined(this._roadMeshes)) {
-      this._roadMeshes.forEach((rdmesh: RoadMesh) => {
-          alignmentBuilder.setSymbology(rdmesh.color, rdmesh.color, 0);
-          alignmentBuilder.addPolyface(rdmesh.mesh as Polyface, true);
-      });
+    if (this._showMeshes)
+      this.addMeshesToBuilder(alignmentBuilder);
 
-      context.addDecorationFromBuilder(alignmentBuilder);
-    }
+    context.addDecorationFromBuilder(alignmentBuilder);
   }
 
   public decorateSuspended(context: DecorateContext): void { this.decorate(context); }
@@ -146,11 +154,12 @@ export class PlaceRoadTool extends PrimitiveTool {
     if (this._locationData.length > 0 && undefined !== ev.viewport) {
       const newHoriz = this._editor.GetDynamicHorizontalAlignment(ev.point);
 
-      if (!isNullOrUndefined(newHoriz)){
+      if (!isNullOrUndefined(newHoriz)) {
         this._horizontal = newHoriz;
         ev.viewport.invalidateDecorations();
 
-        await this.getMeshes();
+        if (this._showMeshes)
+          await this.getMeshes();
       }
     }
   }
