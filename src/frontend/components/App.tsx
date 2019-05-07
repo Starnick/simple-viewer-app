@@ -243,7 +243,7 @@ class OpenIModelButton extends React.PureComponent<OpenIModelButtonProps, OpenIM
       // attempt to open the imodel
      if (this.props.offlineIModel) {
         const offlineIModel = Config.App.getString("imjs_offline_imodel");
-        imodel = await IModelConnection.openStandalone(offlineIModel, OpenMode.Readonly);
+        imodel = await IModelConnection.openStandalone(offlineIModel, OpenMode.ReadWrite);
       } else {
         const info = await this.getIModelInfo();
         imodel = await IModelConnection.open(this.props.accessToken!, info.projectId, info.imodelId, OpenMode.Readonly);
