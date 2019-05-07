@@ -246,7 +246,7 @@ class OpenIModelButton extends React.PureComponent<OpenIModelButtonProps, OpenIM
         imodel = await IModelConnection.openStandalone(offlineIModel, OpenMode.ReadWrite);
       } else {
         const info = await this.getIModelInfo();
-        imodel = await IModelConnection.open(this.props.accessToken!, info.projectId, info.imodelId, OpenMode.Readonly);
+        imodel = await IModelConnection.open(this.props.accessToken!, info.projectId, info.imodelId, OpenMode.ReadWrite);
       }
     } catch (e) {
       alert(e.message);
