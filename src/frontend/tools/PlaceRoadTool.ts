@@ -36,8 +36,6 @@ export class PlaceRoadTool extends PrimitiveTool {
   private _editor: AlignmentDesigner;
   private _horizontal: Path | undefined;
   private _roadMeshes: RoadMesh[] | undefined;
-  private _useLocalMeshes: boolean = true;
-  private _showMeshes: boolean = true;
 
   constructor() {
     super();
@@ -74,15 +72,7 @@ export class PlaceRoadTool extends PrimitiveTool {
     if (isNullOrUndefined(this._horizontal))
       return;
 
-    let meshes; // array of JSON objects representing serialized mesh + symbology
-
-    if (this._useLocalMeshes) {
-      meshes = CivilGeometry.CreateDynamicRoadMeshes(this._horizontal);
-    } else {
-      const jsonstr = JSON.stringify(IModelJson.Writer.toIModelJson(this._horizontal));
-      const meshStr = await CorridorModelerRpcInterface.getClient().createRoadMesh(this.iModel.iModelToken, jsonstr);
-      meshes = JSON.parse(meshStr);
-    }
+    const meshes = CivilGeometry.CreateDynamicRoadMeshes(this._horizontal);
 
     this._roadMeshes = new Array<RoadMesh>();
 
@@ -95,12 +85,22 @@ export class PlaceRoadTool extends PrimitiveTool {
     }
   }
 
-  public async onResetButtonDown(_ev: BeButtonEvent): Promise<EventHandled> {
-    // commented out, for now we crash because of unlinked polyface methods in WASM!!
-   this._useLocalMeshes = !this._useLocalMeshes;
-   // this._showMeshes = !this._showMeshes;
+  private async createRoadSegment(): Promise<void> {
+    const jsonstr = JSON.stringify(IModelJson.Writer.toIModelJson(this._horizontal));
+    await CorridorModelerRpcInterface.getClient().createRoadMesh(this.iModel.iModelToken, jsonstr);
+  }
 
-   return EventHandled.Yes;
+  public async onResetButtonDown(_ev: BeButtonEvent): Promise<EventHandled> {
+    if (!isNullOrUndefined(this._horizontal)) {
+      this.createRoadSegment();
+      // this._horizontal = undefined;
+      // this._editor.delete();
+      // this._editor = CivilGeometry.CreateAlignmentDesigner();
+      // _locationData = new Array<Point3d>();
+    }
+
+    this.onRestartTool();
+    return EventHandled.Yes;
   }
 
   public async onDataButtonDown(ev: BeButtonEvent): Promise<EventHandled> {
@@ -143,8 +143,7 @@ export class PlaceRoadTool extends PrimitiveTool {
     else
       alignmentBuilder.addPath(this._horizontal);
 
-    if (this._showMeshes)
-      this.addMeshesToBuilder(alignmentBuilder);
+    this.addMeshesToBuilder(alignmentBuilder);
 
     context.addDecorationFromBuilder(alignmentBuilder);
   }
@@ -159,8 +158,7 @@ export class PlaceRoadTool extends PrimitiveTool {
         this._horizontal = newHoriz;
         ev.viewport.invalidateDecorations();
 
-        if (this._showMeshes)
-          await this.getMeshes();
+        await this.getMeshes();
       }
     }
   }
