@@ -36,8 +36,8 @@ export class PlaceRoadTool extends PrimitiveTool {
   private _editor: AlignmentDesigner;
   private _horizontal: Path | undefined;
   private _roadMeshes: RoadMesh[] | undefined;
-  private _useLocalMeshes: boolean = false;
-  private _showMeshes: boolean = false;
+  private _useLocalMeshes: boolean = true;
+  private _showMeshes: boolean = true;
 
   constructor() {
     super();
@@ -74,15 +74,16 @@ export class PlaceRoadTool extends PrimitiveTool {
     if (isNullOrUndefined(this._horizontal))
       return;
 
-    const jsonstr = JSON.stringify(IModelJson.Writer.toIModelJson(this._horizontal));
-    let meshStr;
+    let meshes; // array of JSON objects representing serialized mesh + symbology
 
-    if (this._useLocalMeshes)
-      meshStr = CivilGeometry.CreateDynamicRoadMeshes(this._editor);
-    else
-      meshStr = await CorridorModelerRpcInterface.getClient().createRoadMesh(this.iModel.iModelToken, jsonstr);
+    if (this._useLocalMeshes) {
+      meshes = CivilGeometry.CreateDynamicRoadMeshes(this._horizontal);
+    } else {
+      const jsonstr = JSON.stringify(IModelJson.Writer.toIModelJson(this._horizontal));
+      const meshStr = await CorridorModelerRpcInterface.getClient().createRoadMesh(this.iModel.iModelToken, jsonstr);
+      meshes = JSON.parse(meshStr);
+    }
 
-    const meshes = JSON.parse(meshStr);
     this._roadMeshes = new Array<RoadMesh>();
 
     for (const element of meshes) {
@@ -96,10 +97,10 @@ export class PlaceRoadTool extends PrimitiveTool {
 
   public async onResetButtonDown(_ev: BeButtonEvent): Promise<EventHandled> {
     // commented out, for now we crash because of unlinked polyface methods in WASM!!
-    // this._useLocalMeshes = !this._useLocalMeshes;
-    this._showMeshes = !this._showMeshes;
+   this._useLocalMeshes = !this._useLocalMeshes;
+   // this._showMeshes = !this._showMeshes;
 
-    return EventHandled.Yes;
+   return EventHandled.Yes;
   }
 
   public async onDataButtonDown(ev: BeButtonEvent): Promise<EventHandled> {
