@@ -36,8 +36,6 @@ export class PlaceRoadTool extends PrimitiveTool {
   private _editor: AlignmentDesigner;
   private _horizontal: Path | undefined;
   private _roadMeshes: RoadMesh[] | undefined;
-  private _useLocalMeshes: boolean = false;
-  private _showMeshes: boolean = false;
 
   constructor() {
     super();
@@ -74,13 +72,10 @@ export class PlaceRoadTool extends PrimitiveTool {
     if (isNullOrUndefined(this._horizontal))
       return;
 
-    const jsonstr = JSON.stringify(IModelJson.Writer.toIModelJson(this._horizontal));
-    let meshStr;
-
-    if (this._useLocalMeshes)
-      meshStr = CivilGeometry.CreateDynamicRoadMeshes(this._editor);
-    else
-      meshStr = await CorridorModelerRpcInterface.getClient().createRoadMesh(this.iModel.iModelToken, jsonstr);
+    const mesh = CivilGeometry.CreateDynamicRoadMeshes(this._editor);
+    if(!mesh)
+      return;
+    const meshStr = JSON.stringify(mesh);
 
     const meshes = JSON.parse(meshStr);
     this._roadMeshes = new Array<RoadMesh>();
@@ -94,10 +89,16 @@ export class PlaceRoadTool extends PrimitiveTool {
     }
   }
 
+  private async createRoadSegment(): Promise<void> {
+    const jsonstr = JSON.stringify(IModelJson.Writer.toIModelJson(this._horizontal));
+    await CorridorModelerRpcInterface.getClient().createRoadMesh(this.iModel.iModelToken, jsonstr);
+  }
+
   public async onResetButtonDown(_ev: BeButtonEvent): Promise<EventHandled> {
-    // commented out, for now we crash because of unlinked polyface methods in WASM!!
-    // this._useLocalMeshes = !this._useLocalMeshes;
-    this._showMeshes = !this._showMeshes;
+    if (!isNullOrUndefined(this._horizontal)) {
+      this.createRoadSegment();
+      this._horizontal = undefined;
+    }
 
     return EventHandled.Yes;
   }
@@ -142,8 +143,7 @@ export class PlaceRoadTool extends PrimitiveTool {
     else
       alignmentBuilder.addPath(this._horizontal);
 
-    if (this._showMeshes)
-      this.addMeshesToBuilder(alignmentBuilder);
+    this.addMeshesToBuilder(alignmentBuilder);
 
     context.addDecorationFromBuilder(alignmentBuilder);
   }
@@ -158,8 +158,7 @@ export class PlaceRoadTool extends PrimitiveTool {
         this._horizontal = newHoriz;
         ev.viewport.invalidateDecorations();
 
-        if (this._showMeshes)
-          await this.getMeshes();
+        await this.getMeshes();
       }
     }
   }
