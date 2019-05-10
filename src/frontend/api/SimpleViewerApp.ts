@@ -2,10 +2,9 @@
 * Copyright (c) 2019 Bentley Systems, Incorporated. All rights reserved.
 * Licensed under the MIT License. See LICENSE.md in the project root for license terms.
 *--------------------------------------------------------------------------------------------*/
-import { ActivityLoggingContext, Guid } from "@bentley/bentleyjs-core";
-import { BentleyCloudRpcParams, RpcConfiguration, MobileRpcConfiguration } from "@bentley/imodeljs-common";
-import { Config, AccessToken, UrlDiscoveryClient, OidcFrontendClientConfiguration, IOidcFrontendClient } from "@bentley/imodeljs-clients";
-import { IModelApp, OidcBrowserClient } from "@bentley/imodeljs-frontend";
+import { BentleyCloudRpcParams, MobileRpcConfiguration } from "@bentley/imodeljs-common";
+import { Config, UrlDiscoveryClient, OidcFrontendClientConfiguration, IOidcFrontendClient } from "@bentley/imodeljs-clients";
+import { IModelApp, OidcBrowserClient, FrontendRequestContext } from "@bentley/imodeljs-frontend";
 import { Presentation } from "@bentley/presentation-frontend";
 import { UiCore } from "@bentley/ui-core";
 import { UiComponents } from "@bentley/ui-components";
@@ -20,7 +19,7 @@ initLogging();
 
 // subclass of IModelApp needed to use imodeljs-frontend
 export class SimpleViewerApp extends IModelApp {
-  private static _rpcConfig: RpcConfiguration;
+
   private static _isReady: Promise<void>;
   private static _oidcClient: IOidcFrontendClient;
 
@@ -62,7 +61,7 @@ export class SimpleViewerApp extends IModelApp {
 
   private static async initializeRpc(): Promise<void> {
     const rpcParams = await this.getConnectionInfo();
-    this._rpcConfig = initRpc(rpcParams);
+    initRpc(rpcParams);
   }
 
   private static async initializeOidc() {
@@ -77,25 +76,15 @@ export class SimpleViewerApp extends IModelApp {
     else
       this._oidcClient = new OidcBrowserClient(oidcConfig);
 
-    await this._oidcClient.initialize(new ActivityLoggingContext(Guid.createValue()));
-    this._oidcClient.onUserStateChanged.addListener(this._onUserStateChanged);
+    const requestContext = new FrontendRequestContext();
+    await this._oidcClient.initialize(requestContext);
 
-    const accessToken: AccessToken | undefined = await this._oidcClient.getAccessToken(new ActivityLoggingContext(Guid.createValue()));
-    if (accessToken)
-      this._rpcConfig.applicationAuthorizationValue = accessToken.toTokenString();
+    SimpleViewerApp.authorizationClient = this._oidcClient;
   }
 
   public static shutdown() {
-    this._oidcClient.onUserStateChanged.removeListener(this._onUserStateChanged);
     this._oidcClient.dispose();
     IModelApp.shutdown();
-  }
-
-  private static _onUserStateChanged = (accessToken: AccessToken | undefined) => {
-    // tslint:disable-next-line:no-floating-promises
-    SimpleViewerApp.ready.then(() => {
-      SimpleViewerApp._rpcConfig.applicationAuthorizationValue = accessToken ? accessToken.toTokenString() : "";
-    });
   }
 
   private static async getConnectionInfo(): Promise<BentleyCloudRpcParams | undefined> {
@@ -103,7 +92,8 @@ export class SimpleViewerApp extends IModelApp {
 
     if (usedBackend === UseBackend.Navigator) {
       const urlClient = new UrlDiscoveryClient();
-      const orchestratorUrl = await urlClient.discoverUrl(new ActivityLoggingContext(Guid.createValue()), "iModelJsOrchestrator.SF", undefined);
+      const requestContext = new FrontendRequestContext();
+      const orchestratorUrl = await urlClient.discoverUrl(requestContext, "iModelJsOrchestrator.SF", undefined);
       return { info: { title: "navigator-backend", version: "v1.0" }, uriPrefix: orchestratorUrl };
     }
 

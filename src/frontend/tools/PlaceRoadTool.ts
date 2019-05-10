@@ -31,14 +31,15 @@ class RoadMesh {
 
 export class PlaceRoadTool extends PrimitiveTool {
   public static toolId = "ConceptStation.PlaceRoad";
-  protected readonly _locationData = new Array<Point3d>();
+  protected _locationData = new Array<Point3d>();
 
-  private _editor: AlignmentDesigner;
+  private _editor: AlignmentDesigner | undefined;
   private _horizontal: Path | undefined;
   private _roadMeshes: RoadMesh[] | undefined;
 
   constructor() {
     super();
+
     this._editor = CivilGeometry.CreateAlignmentDesigner();
     this._horizontal = undefined;
     this._roadMeshes = undefined;
@@ -46,7 +47,11 @@ export class PlaceRoadTool extends PrimitiveTool {
 
   public isCompatibleViewport(vp: Viewport | undefined, isSelectedViewChange: boolean): boolean { return (super.isCompatibleViewport(vp, isSelectedViewChange) && undefined !== vp && vp.view.isSpatialView()); }
   public requireWriteableTarget(): boolean { return false; }
-  public onPostInstall() { super.onPostInstall(); this.setupAndPromptForNextAction(); }
+  public onPostInstall() {
+    super.onPostInstall();
+    this.setupAndPromptForNextAction();
+    // CorridorModelerRpcInterface.getClient().createRoadMesh(this.iModel.iModelToken, "");
+  }
 
   protected showPrompt(): void { IModelApp.notifications.outputPromptByKey(0 === this._locationData.length ? "CoreTools:tools.Measure.Distance.Prompts.FirstPoint" : "CoreTools:tools.Measure.Distance.Prompts.NextPoint"); }
 
@@ -59,7 +64,8 @@ export class PlaceRoadTool extends PrimitiveTool {
 
   public onCleanup(): void {
     // Should explicitly delete. If JS does a GC it _should_ release the RefCountedPtr
-    this._editor.delete();
+    if(this._editor)
+      this._editor.delete();
   }
 
   public onRestartTool(): void {
@@ -68,7 +74,7 @@ export class PlaceRoadTool extends PrimitiveTool {
       tool.exitTool();
   }
 
-  private async getMeshes(): Promise<void> {
+  public async getMeshes(): Promise<void> {
     if (isNullOrUndefined(this._horizontal))
       return;
 
@@ -93,10 +99,11 @@ export class PlaceRoadTool extends PrimitiveTool {
   public async onResetButtonDown(_ev: BeButtonEvent): Promise<EventHandled> {
     if (!isNullOrUndefined(this._horizontal)) {
       this.createRoadSegment();
-      // this._horizontal = undefined;
-      // this._editor.delete();
-      // this._editor = CivilGeometry.CreateAlignmentDesigner();
-      // _locationData = new Array<Point3d>();
+      this._horizontal = undefined;
+      if(this._editor)
+        this._editor.delete();
+      this._editor = CivilGeometry.CreateAlignmentDesigner();
+      this._locationData = new Array<Point3d>();
     }
 
     this.onRestartTool();
@@ -104,10 +111,13 @@ export class PlaceRoadTool extends PrimitiveTool {
   }
 
   public async onDataButtonDown(ev: BeButtonEvent): Promise<EventHandled> {
+    if(!this._editor)
+      return EventHandled.Yes;
+
     const point = ev.point.clone();
-    if (!this._editor.InsertPoint(point)) {
-        return EventHandled.Yes;
-      }
+     if (!this._editor.InsertPoint(point)) {
+         return EventHandled.Yes;
+       }
 
     this._locationData.push(point);
     this._horizontal = this._editor.GetHorizontalCurveVector();
@@ -151,7 +161,7 @@ export class PlaceRoadTool extends PrimitiveTool {
   public decorateSuspended(context: DecorateContext): void { this.decorate(context); }
 
   public async onMouseMotion(ev: BeButtonEvent): Promise<void> {
-    if (this._locationData.length > 0 && undefined !== ev.viewport) {
+    if (this._editor && this._locationData.length > 0 && undefined !== ev.viewport) {
       const newHoriz = this._editor.GetDynamicHorizontalAlignment(ev.point);
 
       if (!isNullOrUndefined(newHoriz)) {

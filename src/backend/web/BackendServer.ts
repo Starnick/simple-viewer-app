@@ -3,9 +3,9 @@
 * Licensed under the MIT License. See LICENSE.md in the project root for license terms.
 *--------------------------------------------------------------------------------------------*/
 // tslint:disable:no-console
-import * as express from "express";
 import { RpcInterfaceDefinition, BentleyCloudRpcManager, IModelToken, RpcInterface, RpcManager } from "@bentley/imodeljs-common";
-import { IModelJsExpressServer } from "@bentley/imodeljs-backend";
+import { IModelDb } from "@bentley/imodeljs-backend";
+import { IModelJsExpressServer } from "@bentley/express-server";
 import { Sum, CorridorModeler } from "calculator-backend";
 import { Point3d } from "@bentley/geometry-core";
 import { CorridorModelerRpcInterface } from "../../common/CorridorModelerRpc";
@@ -18,8 +18,7 @@ export default async function initialize(rpcs: RpcInterfaceDefinition[]) {
   const rpcConfig = BentleyCloudRpcManager.initializeImpl({ info: { title: "simple-viewer-app", version: "v1.0" } }, rpcs);
 
   const port = Number(process.env.PORT || 3001);
-  const app = express();
-  const server = new IModelJsExpressServer(app, rpcConfig.protocol);
+  const server = new IModelJsExpressServer(rpcConfig.protocol);
   await server.initialize(port);
   console.log("RPC backend for simple-viewer-app listening on port " + port);
 
@@ -40,9 +39,46 @@ export default async function initialize(rpcs: RpcInterfaceDefinition[]) {
 
 export class CorridorModelerRpcImpl extends RpcInterface implements CorridorModelerRpcInterface {
   public async createRoadMesh(_iModelToken: IModelToken, alignment: string): Promise<string> {
-     const modeler = new CorridorModeler();
-     const json = modeler.CreateRoadMesh(alignment);
+    console.log("rpc received");
 
-     return JSON.stringify(json);
+    const modeler = new CorridorModeler();
+    // const json = modeler.CreateRoadMesh(alignment);
+
+    const imodelDb = IModelDb.find(_iModelToken);
+    if(imodelDb) {
+      console.log("is open " + imodelDb.nativeDb.isOpen());
+
+      try {
+        const ptr = imodelDb.nativeDb.getRawDgnDbPointer();
+        console.log("ptr address = " + ptr);
+
+        console.log("dgn filename = " + modeler.dosomethingWithDgnDb(ptr, alignment));
+      }
+      catch(e) {
+        console.log((e as Error).message);
+      }
+
+      for(const elm in imodelDb.elements) {
+        console.log("elem = " + elm);
+      }
+      // let modelId : any;
+       for(const mod in imodelDb.models) {
+         //modelId = mod;
+         console.log("model = " + mod);
+       }
+
+      // let model = imodelDb.models.getModel(modelId);
+      // const props: GeometricElement3dProps = {
+      //    model: model.id,
+      //    code: Code.createEmpty(),
+      //    classFullName:
+      // }
+
+      // imodelDb.elements.insertElement(props);
+    } else {
+      console.log("no imodel available");
+     }
+
+    return "";//JSON.stringify(json);
     }
 }
