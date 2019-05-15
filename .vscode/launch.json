@@ -8,7 +8,8 @@
         "name": "Web: All",
         "configurations": [
           "Web: Server (backend)",
-          "Web: Chrome (frontend)"
+          "Web: Chrome (frontend)",
+          "Web: Server (webserver)"
         ]
       },
       {
@@ -25,18 +26,14 @@
       "request": "launch",
       "name": "Web: Server (backend)",
       "protocol": "inspector",
-      "program": "${workspaceFolder}/node_modules/@bentley/webpack-tools/bin/bentley-webpack-tools.js",
+      "program": "${workspaceFolder}/lib/backend/main.js",
       "cwd": "${workspaceFolder}",
-      "args": [
-        "start",
-        "--debug=9229",
-        "--noElectron"
-      ],
-      "port": 9229,
-      "timeout": 100000,
+      "env": {
+        "imjs_buddi_resolve_url_using_region": "102"
+      },
       "showAsyncStacks": true,
       "smartStep": true,
-      "restart": true
+      "restart": true,
     },
     {
       "name": "Web: Chrome (frontend)",
@@ -48,6 +45,17 @@
         "webpack:///src/*": "${webRoot}/*"
       },
       "smartStep": true
+    },
+    {
+      "name": "Web: Server (webserver)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/@bentley/imodeljs-webserver/lib/webserver.js",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "--port=3000",
+        "--resources=./lib/webresources/"
+      ],
     },
     {
       "type": "node",
